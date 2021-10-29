@@ -1,0 +1,77 @@
+---
+title: "xBA minus K's"
+output: html_document
+# For actual xBA, need to factor in the PA that end in a K
+---
+
+```{r}
+spring2020_fall2021 <- full_join(Full_Spring, fall_21)
+```
+
+```{r}
+# Subsetting all data to get only PA outcomes and exit velo
+exit_velo <- subset(spring2020_fall2021, select = c(PlayResult, ExitSpeed))
+```
+
+```{r}
+# Subsetting all data to get only PA outcomes and launch angle
+launch_angle <- subset(spring2020_fall2021, select = c(PlayResult, Angle))
+```
+
+```{r}
+# Subsetting fall_21 to get PA outcomes, exit velo, and launch angle
+exit_launch <- subset(spring2020_fall2021, select = c(PlayResult, ExitSpeed, Angle))
+```
+
+```{r}
+# Filtering subsetted data to only get BBE
+singles <- filter(exit_launch, PlayResult == "Single")
+doubles <- filter(exit_launch, PlayResult == "Double")
+triples <- filter(exit_launch, PlayResult == "Triple")
+dingers <- filter(exit_launch, PlayResult == "HomeRun")
+hits <- Reduce(function(x, y) merge(x, y, all=TRUE), 
+                  list(singles,
+                       doubles,
+                       triples,
+                       dingers))
+true_outs <- filter(exit_launch, PlayResult == "Out")
+errors <- filter(exit_launch, PlayResult == "Error")
+fielders_choice <- filter(exit_launch, PlayResult == "FieldersChoice")
+sac <- filter(exit_launch, PlayResult == "Sacrifice")
+outs <- Reduce(function(x, y) merge(x, y, all=TRUE), 
+                  list(true_outs,
+                       errors,
+                       fielders_choice,
+                       sac))
+
+# Filtering all the BBE with missing data
+bbe_outs <- filter(outs, !is.na(ExitSpeed) | ExitSpeed != "")
+bbe_hits <- filter(hits, !is.na(ExitSpeed) | ExitSpeed != "")
+
+# Joining all BBE
+bbe <- full_join(bbe_hits, bbe_outs)
+
+```
+
+```{r}
+# Adding a column determining whether a BBE is a "hit" or "out"
+bbe$HitsOuts <- 
+  ifelse(bbe$PlayResult == "HomeRun", "Hit",
+  ifelse(bbe$PlayResult == "Triple", "Hit",
+  ifelse(bbe$PlayResult == "Double", "Hit",
+  ifelse(bbe$PlayResult == "Single", "Hit",
+         "Out"))))
+  
+```
+
+```{r}
+# Adding a column determining the hit type
+bbe$HitType <-
+    ifelse(bbe$Angle > 0 & bbe$Angle < 10, "Grounder",
+    ifelse(bbe$Angle > 10 & bbe$Angle < 19, "LineDrive",
+    ifelse(bbe$Angle > 20 & bbe$Angle < 26, "HighDrive",
+    ifelse(bbe$Angle > 26 & bbe$Angle < 39, "FlyBall",
+    ifelse(bbe$Angle > 39, "PopUp",
+           "Dribbler")))))
+```
+
